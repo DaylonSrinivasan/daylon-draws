@@ -132,8 +132,17 @@ function redraw(){
 
     for(var i=0; i < points.length; i++) {
         context.beginPath();
-        if(points[i].drag && i && points[i-1].user_id==points[i].user_id){
-            context.moveTo(points[i-1].x, points[i-1].y);
+        if(points[i].drag && i){
+            //context.moveTo(points[i-1].x, points[i-1].y);
+            var j = i-1;
+            while(points[j].user_id!=points[i].user_id&&j>0)
+                j--;
+            if(j>0){
+                context.moveTo(points[j].x, points[j].y);
+            }
+            else{
+                context.moveTo(points[i].x-1, points[i].y);
+            }
         }else{
             context.moveTo(points[i].x-1, points[i].y);
         }
