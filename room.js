@@ -117,12 +117,15 @@ $('#canvas').mouseup(function(e){
 });
 
 function comparator(a, b){
-    return a.user_id - b.user_id;
+    return b.user_id - a.user_id;
 }
 
 function redraw(){
     context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
+    console.log(points);
     //points.sort(comparator);
+    console.log("after");
+    console.log(points);
     context.lineJoin = "round";
     context.lineWidth = 5;
 
