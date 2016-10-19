@@ -4,13 +4,13 @@ var roomName = 'daylons-room';    // Replace this with your own room name
 var socket = io.connect(base + roomName);
 
 /**
- * These are the events that the websocket server will emit
- *
- * When sending messages, make sure the type is set to 'message', or other clients won't receive your data
- * (e.g. socket.emit('message', { ... }); )
- */
+* These are the events that the websocket server will emit
+*
+* When sending messages, make sure the type is set to 'message', or other clients won't receive your data
+* (e.g. socket.emit('message', { ... }); )
+*/
 socket.on('welcome', function () {
-    // Connection is established, start using the socket
+    socket.emit('message', {type: 'get_current_drawing'});
 });
 
 socket.on('message', function (data) {
@@ -18,10 +18,31 @@ socket.on('message', function (data) {
     // Messages are automatically broadcasted to everyone in the room
     //socket.emit('message', 'this is a response message!');
 
-    clickX.push(data.x);
-    clickY.push(data.y);
-    clickDrag.push(data.dragging);
-    redraw();
+    switch(data.type){
+        case 'click':
+            points.push(data.point);
+            redraw();
+            break;
+        case 'get_current_drawing':
+            socket.emit('message', {type: 'current_drawing', points: points, use_surprise_color: use_surprise_color});
+            break;
+        case 'current_drawing':
+            points=data.points;
+            use_surprise_color=data.use_surprise_color;
+            redraw();
+            break;
+        case 'clear':
+            points.length=0;
+            redraw();
+            break;
+        case 'surprise':
+            use_surprise_color=!use_surprise_color;
+            if(use_surprise_color)
+                setTimeout(surpriseColorShift, 100);
+            redraw();
+            break;
+    }
+
 });
 
 socket.on('heartbeat', function () {
@@ -36,19 +57,34 @@ socket.on('error', function (err) {
 });
 
 
+class Point{
+
+    constructor(x, y, drag, color){
+        this.x=x;
+        this.y=y;
+        this.drag=drag;
+        this.color=color;
+        this.surpriseColor=generateRandomColor();
+    }
+}
 //mycode
 var context = document.getElementById("canvas").getContext("2d");
 var clickX = new Array();
 var clickY = new Array();
 var clickDrag = new Array();
+var clickColor = new Array();
+var points = new Array();
 var paint;
+var color = generateRandomColor();
+var use_surprise_color;
 
 function addClick(x, y, dragging)
 {
-  clickX.push(x);
-  clickY.push(y);
-  clickDrag.push(dragging);
-  socket.emit('message', {x: x, y: y, dragging: dragging});
+    current_drawing = true;
+
+    var p = new Point(x, y, dragging, color);
+    points.push(p);
+    socket.emit('message', {type: 'click', point: p });
 
 }
 
@@ -56,6 +92,7 @@ $('#canvas').mousedown(function(e) {
 
     var mouseX = e.pageX - this.offsetLeft;
     var mouseY = e.pageY - this.offsetTop;
+    var curColor = color;
 
     paint = true;
     addClick(mouseX, mouseY);
@@ -63,36 +100,68 @@ $('#canvas').mousedown(function(e) {
 });
 
 $('#canvas').mousemove(function(e){
-  if(paint){
-    addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
-    redraw();
-  }
+    if(paint){
+        addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+        redraw();
+    }
 });
 
 $('#canvas').mouseleave(function(e){
-  paint = false;
+    paint = false;
 });
 
 $('#canvas').mouseup(function(e){
-  paint = false;
+    paint = false;
 });
 
 function redraw(){
-  context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
+    context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
 
-  context.strokeStyle = "#df4b26";
-  context.lineJoin = "round";
-  context.lineWidth = 5;
+    context.lineJoin = "round";
+    context.lineWidth = 5;
 
-  for(var i=0; i < clickX.length; i++) {
-    context.beginPath();
-    if(clickDrag[i] && i){
-      context.moveTo(clickX[i-1], clickY[i-1]);
-     }else{
-       context.moveTo(clickX[i]-1, clickY[i]);
-     }
-     context.lineTo(clickX[i], clickY[i]);
-     context.closePath();
-     context.stroke();
-  }
+    for(var i=0; i < points.length; i++) {
+        context.beginPath();
+        if(points[i].drag && i){
+            context.moveTo(points[i-1].x, points[i-1].y);
+        }else{
+            context.moveTo(points[i].x-1, points[i].y);
+        }
+        context.lineTo(points[i].x, points[i].y);
+        context.closePath();
+        context.strokeStyle = use_surprise_color ? points[i].surpriseColor : points[i].color;
+        context.stroke();
+    }
+
+}
+
+function clearSlate() {
+    points.length=0;
+    socket.emit('message', {type: 'clear'});
+    redraw();
+}
+
+function randomizeColor() {
+    color = generateRandomColor();
+}
+
+function generateRandomColor(){
+    return "#"+Math.random().toString(16).substr(-6);
+}
+function surpriseColorShift() {
+        for(var i = 0; i < points.length; i++){
+            if(i==points.length-1)
+                points[i].surpriseColor=generateRandomColor();
+            else
+                points[i].surpriseColor=points[i+1].surpriseColor;
+        }
+        redraw();
+        if(use_surprise_color)
+            setTimeout(surpriseColorShift, 100);
+}
+
+function surprise() {
+    use_surprise_color=!use_surprise_color;
+    setTimeout(surpriseColorShift, 100);
+    socket.emit('message', {type: 'surprise'});
 }
