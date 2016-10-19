@@ -59,12 +59,13 @@ socket.on('error', function (err) {
 
 class Point{
 
-    constructor(x, y, drag, color){
+    constructor(x, y, drag, color, name){
         this.x=x;
         this.y=y;
         this.drag=drag;
         this.color=color;
         this.surpriseColor=generateRandomColor();
+        this.user_id=user_id;
     }
 }
 //mycode
@@ -77,12 +78,13 @@ var points = new Array();
 var paint;
 var color = generateRandomColor();
 var use_surprise_color;
+var user_id = Math.floor((Math.random() * 10) + 1);
 
 function addClick(x, y, dragging)
 {
     current_drawing = true;
 
-    var p = new Point(x, y, dragging, color);
+    var p = new Point(x, y, dragging, color, user_id);
     points.push(p);
     socket.emit('message', {type: 'click', point: p });
 
@@ -114,15 +116,20 @@ $('#canvas').mouseup(function(e){
     paint = false;
 });
 
+function comparator(a, b){
+    return a.user_id - b.user_id;
+}
+
 function redraw(){
     context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
-
+    //points.sort(comparator);
     context.lineJoin = "round";
     context.lineWidth = 5;
 
+
     for(var i=0; i < points.length; i++) {
         context.beginPath();
-        if(points[i].drag && i){
+        if(points[i].drag && i && points[i-1].user_id==points[i].user_id){
             context.moveTo(points[i-1].x, points[i-1].y);
         }else{
             context.moveTo(points[i].x-1, points[i].y);
