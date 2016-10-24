@@ -190,7 +190,8 @@ function surpriseColorShift() {
         for(var i = 0; i < points.length-1; i++){
                 points[i].surpriseColor=points[i+1].surpriseColor;
         }
-        points[points.length-1].surpriseColor=generateRandomColor();
+        if(points.length>0)
+            points[points.length-1].surpriseColor=generateRandomColor();
 
         redraw();
         if(use_surprise_color)
