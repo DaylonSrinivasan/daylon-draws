@@ -38,10 +38,11 @@ socket.on('message', function (data) {
             redraw();
             break;
         case 'surprise':
-            use_surprise_color=!use_surprise_color;
+            use_surprise_color = data.use_surprise_color;
             if(use_surprise_color)
                 setTimeout(surpriseColorShift, 100);
             redraw();
+
             break;
     }
 
@@ -197,18 +198,12 @@ function surpriseColorShift() {
 }
 
 function surprise() {
-    document.getElementById('surprisetoggle').checked ? use_surprise_color = true: use_surprise_color = false;
-    setTimeout(surpriseColorShift, 100);
-    socket.emit('message', {type: 'surprise'});
+    use_surprise_color=!use_surprise_color;
+    if(use_surprise_color)
+        setTimeout(surpriseColorShift, 100);
+    socket.emit('message', {type: 'surprise', use_surprise_color: use_surprise_color});
 }
 
 $("#erasertoggle").change(function(){
     document.getElementById('erasertoggle').checked ? erasing = true: erasing = false;
-});
-
-
-$("#surprisetoggle").change(function(){
-    document.getElementById('surprisetoggle').checked ? use_surprise_color = true: use_surprise_color = false;
-    setTimeout(surpriseColorShift, 100);
-    socket.emit('message', {type: 'surprise'});
 });
