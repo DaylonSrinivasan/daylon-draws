@@ -29,6 +29,8 @@ socket.on('message', function (data) {
         case 'current_drawing':
             points=data.points;
             use_surprise_color=data.use_surprise_color;
+            if(use_surprise_color)
+                setTimeout(surpriseColorShift, 100);
             redraw();
             break;
         case 'clear':
@@ -57,34 +59,36 @@ socket.on('error', function (err) {
 });
 
 
+
+
 class Point{
 
-    constructor(x, y, drag, color, name){
+    constructor(x, y, drag, color, size, user_id){
         this.x=x;
         this.y=y;
         this.drag=drag;
+        this.size = size;
         this.color=color;
         this.surpriseColor=generateRandomColor();
+        this.erasing=erasing;
         this.user_id=user_id;
     }
 }
-//mycode
+
 var context = document.getElementById("canvas").getContext("2d");
-var clickX = new Array();
-var clickY = new Array();
-var clickDrag = new Array();
-var clickColor = new Array();
 var points = new Array();
 var paint;
 var color = generateRandomColor();
+var size = 30;
 var use_surprise_color;
-var user_id = Math.floor((Math.random() * 10) + 1);
+var erasing = false;
+var user_id = Math.floor((Math.random() * 100) + 1);
 
 function addClick(x, y, dragging)
 {
     current_drawing = true;
 
-    var p = new Point(x, y, dragging, color, user_id);
+    var p = new Point(x, y, dragging, color, size, user_id);
     points.push(p);
     socket.emit('message', {type: 'click', point: p });
 
@@ -94,8 +98,6 @@ $('#canvas').mousedown(function(e) {
 
     var mouseX = e.pageX - this.offsetLeft;
     var mouseY = e.pageY - this.offsetTop;
-    var curColor = color;
-
     paint = true;
     addClick(mouseX, mouseY);
     redraw();
@@ -116,24 +118,16 @@ $('#canvas').mouseup(function(e){
     paint = false;
 });
 
-function comparator(a, b){
-    return b.user_id - a.user_id;
-}
 
 function redraw(){
     context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
-    console.log(points);
-    //points.sort(comparator);
-    console.log("after");
-    console.log(points);
     context.lineJoin = "round";
-    context.lineWidth = 5;
-
 
     for(var i=0; i < points.length; i++) {
         context.beginPath();
+
+        //connect point to last point by same user (if dragging)
         if(points[i].drag && i){
-            //context.moveTo(points[i-1].x, points[i-1].y);
             var j = i-1;
             while(points[j].user_id!=points[i].user_id&&j>0)
                 j--;
@@ -146,12 +140,33 @@ function redraw(){
         }else{
             context.moveTo(points[i].x-1, points[i].y);
         }
+
+
         context.lineTo(points[i].x, points[i].y);
         context.closePath();
-        context.strokeStyle = use_surprise_color ? points[i].surpriseColor : points[i].color;
+        context.lineWidth=points[i].size;
+        if(points[i].erasing)
+            context.strokeStyle = "#FFFFFF";
+        else
+            context.strokeStyle = use_surprise_color ? points[i].surpriseColor : points[i].color;
         context.stroke();
     }
 
+}
+
+function setSize(size) {
+    switch(size){
+        case "small":
+            this.size=10;
+            break;
+        case "medium":
+            this.size=30;
+            break;
+        case "large":
+            this.size=50;
+            break;
+        default: break;
+    }
 }
 
 function clearSlate() {
@@ -161,26 +176,39 @@ function clearSlate() {
 }
 
 function randomizeColor() {
+    erasing=false; //draw with pen
     color = generateRandomColor();
 }
 
 function generateRandomColor(){
     return "#"+Math.random().toString(16).substr(-6);
 }
+
 function surpriseColorShift() {
-        for(var i = 0; i < points.length; i++){
-            if(i==points.length-1)
-                points[i].surpriseColor=generateRandomColor();
-            else
+
+        for(var i = 0; i < points.length-1; i++){
                 points[i].surpriseColor=points[i+1].surpriseColor;
         }
+        points[points.length-1].surpriseColor=generateRandomColor();
+
         redraw();
         if(use_surprise_color)
             setTimeout(surpriseColorShift, 100);
 }
 
 function surprise() {
-    use_surprise_color=!use_surprise_color;
+    document.getElementById('surprisetoggle').checked ? use_surprise_color = true: use_surprise_color = false;
     setTimeout(surpriseColorShift, 100);
     socket.emit('message', {type: 'surprise'});
 }
+
+$("#erasertoggle").change(function(){
+    document.getElementById('erasertoggle').checked ? erasing = true: erasing = false;
+});
+
+
+$("#surprisetoggle").change(function(){
+    document.getElementById('surprisetoggle').checked ? use_surprise_color = true: use_surprise_color = false;
+    setTimeout(surpriseColorShift, 100);
+    socket.emit('message', {type: 'surprise'});
+});
