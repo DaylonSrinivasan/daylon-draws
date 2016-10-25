@@ -177,7 +177,6 @@ function clearSlate() {
 }
 
 function randomizeColor() {
-    erasing=false; //draw with pen
     color = generateRandomColor();
 }
 
